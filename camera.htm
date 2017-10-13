@@ -20,13 +20,13 @@
 			}
 
 			function getMoveMatrix(x, y) {
-				return  [[1, 0, 0], 
-						 [0, 1, 0], 
-						 [x, y, 1]];
+				return  [[1, 0, x], 
+						 [0, 1, y], 
+						 [0, 0, 1]];
 			}
 
 			function getRotateMatrix(a) {
-				return [[cos(a), -sin(a), 0],
+				return [[cos(a),  -sin(a), 0],
 						[sin(a),  cos(a), 0],
 						[     0,       0, 1]];
 			}
@@ -112,7 +112,7 @@
 					}
 				}
 				return invA;
-			}
+			}5
 
 			function mulMatrix(A, B) {
 				var rowsA = A.length;
@@ -167,24 +167,29 @@
 			}
 			
 			var box = {
-				x:      2,
+				x:      3,
 				y:      3,
 				width:  5,
 				height: 2
 			}
+
+			var imgOffset = {
+				x: 3,
+				y: 0
+			}
 			
 			function drawBox() {
-				var M = mulMatrix( getMoveMatrix(box.x, box.y), mainMatrix);
-				ctx.setTransform(M[0][0], M[0][1], M[1][0], M[1][1], M[2][0], M[2][1]);
+				var M = mulMatrix(mainMatrix, getMoveMatrix(box.x, box.y));
+				ctx.setTransform(M[0][0], M[1][0], M[0][1], M[1][1], M[0][2], M[1][2]);
 				ctx.fillStyle = "#FF0000";
-				ctx.fillRect(-box.width/2, -box.height/2, box.width, box.height);
+				ctx.fillRect(0, 0, box.width, box.height);
 				ctx.fillStyle = "#00FFFF";
 				ctx.fillRect(-0.2, -0.2, 0.4, 0.4);
 			}
 			
 			function drawTriangleInBox() {
-				var M = mulMatrix( getMoveMatrix(box.x, box.y), mainMatrix);
-				ctx.setTransform(M[0][0], M[0][1], M[1][0], M[1][1], M[2][0], M[2][1]);
+				var M = mulMatrix(mainMatrix, getMoveMatrix(box.x, box.y));
+				ctx.setTransform(M[0][0], M[1][0], M[0][1], M[1][1], M[0][2], M[1][2]);
 				ctx.beginPath();
 				ctx.moveTo(0,           0);
 				ctx.lineTo(box.width,   0);
@@ -197,7 +202,7 @@
 			
 			function drawAxis() {
 				var M = mainMatrix;
-				ctx.setTransform(M[0][0], M[0][1], M[1][0], M[1][1], M[2][0], M[2][1]);
+				ctx.setTransform(M[0][0], M[1][0], M[0][1], M[1][1], M[0][2], M[1][2]);
 				for ( var i = -10; i <= 10; i++ ) {
 					ctx.beginPath();
 					ctx.moveTo(-10, i);
@@ -220,25 +225,46 @@
 				ctx.fillRect(10, 10, 0.2, 0.2);
 			}
 			
+			function getBoxOffsetMatrix() {
+				var M = getIdentityMatrix();
+					M = mulMatrix(getScaleMatrix(1, 1), M);
+					M = mulMatrix(getRotateMatrix(0.2), M);
+					M = mulMatrix(getMoveMatrix(box.x-imgOffset.x, box.y-imgOffset.y), M);
+				return M;
+			}
+
 			function drawImageInBox() {
 				var img = new Image();
-				img.src = 'cat.jpg';
+				img.src = 'box.jpg';
 				img.onload = function() {
-					var M = getScaleMatrix(1, -1);
-						M = mulMatrix( M, getMoveMatrix(box.x, box.y));
-						M = mulMatrix( M, mainMatrix);
-						
-					ctx.setTransform(M[0][0], M[0][1], M[1][0], M[1][1], M[2][0], M[2][1]);
+					var M = mulMatrix(mainMatrix, getBoxOffsetMatrix());
+					ctx.setTransform(M[0][0], M[1][0], M[0][1], M[1][1], M[0][2], M[1][2]);
+					ctx.drawImage(img, -box.width/2, -box.height/2, box.width, box.height);
+				}
+			}
+
+			function drawDogOnBox() {
+				var img = new Image();
+				img.src = 'dog.jpg';
+				img.onload = function() {
+					var M = getIdentityMatrix();
+						M = mulMatrix(getScaleMatrix(1, 2), M);
+						M = mulMatrix(getRotateMatrix(-0.3), M);
+						M = mulMatrix(getMoveMatrix(-4, 1), M);
+					
+						M = mulMatrix(getBoxOffsetMatrix(), M);
+						M = mulMatrix(mainMatrix, M);
+					ctx.setTransform(M[0][0], M[1][0], M[0][1], M[1][1], M[0][2], M[1][2]);
 					ctx.drawImage(img, -box.width/2, -box.height/2, box.width, box.height);
 				}
 			}
 
 			function getCameraMatrix() {
-				var M = getIdentityMatrix();
-				    M = mulMatrix(M, getRotateMatrix(0)               );
-				    M = mulMatrix(M, getScaleMatrix(1, 1)             );
-				    M = mulMatrix(M, getMoveMatrix(camera.x, camera.y));
-				return M;
+				var c = getIdentityMatrix();
+					c = mulMatrix(getScaleMatrix(1, 1),c);
+					c = mulMatrix(getRotateMatrix(0.1),c);
+					c = mulMatrix(getMoveMatrix(camera.x, camera.y),c);
+				return c;
 			};
 
 			function getCameraInverseMatrix() {
@@ -246,11 +272,11 @@
 			};
 			
 			function getScreenMatrix() {
-				var M = getIdentityMatrix();
-				    M = mulMatrix(M, getRotateMatrix(0));
-				    M = mulMatrix(M, getScaleMatrix(screen.width/camera.width, -screen.height/camera.height));
-				    M = mulMatrix(M, getMoveMatrix(screen.width/2, screen.height/2));
-				return M;
+				var s = getIdentityMatrix();
+					s = mulMatrix(getScaleMatrix(screen.width/camera.width, screen.height/camera.height),s);
+					s = mulMatrix(getRotateMatrix(0),s);
+					s = mulMatrix(getMoveMatrix(canvas.width/2, canvas.height/2),s);
+				return s;
 			};
 			
 			function clean() {
@@ -263,13 +289,15 @@
 				canvas = document.getElementById("mainCanvas");
 				ctx    = canvas.getContext("2d");
 
-				mainMatrix = mulMatrix(getCameraInverseMatrix(), getScreenMatrix());
+				mainMatrix = mulMatrix(getScreenMatrix(), getCameraInverseMatrix());
 				
 				clean();
 				drawAxis();
 				drawBox();
+				
 				drawTriangleInBox();
 				drawImageInBox();
+				drawDogOnBox();
 			}
 			
 			function calc(x, y, w, h) {
