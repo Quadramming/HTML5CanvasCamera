@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Camera</title>
+		<meta charset='utf-8'>
+		<script type='text/javascript'>
+			
+			//================================================================
+			// Shortcuts
+			//================================================================
+			
+			const sin = Math.sin;
+			const cos = Math.cos;
+			
+			//================================================================
+			// Matrix
+			//================================================================
+			
+			function identity() {
+				return [[1, 0, 0],
+								[0, 1, 0],
+								[0, 0, 1]];
+			}
+			
+			function reflect() {
+				return [[1,  0, 0],
+								[0, -1, 0],
+								[0,  0, 1]];
+			}
+			
+			function scale(x, y) {
+				return [[x, 0, 0],
+								[0, y, 0],
+								[0, 0, 1]];
+			}
+			
+			function move(x, y) {
+				return [[1, 0, x],
+								[0, 1, y],
+								[0, 0, 1]];
+			}
+			
+			function rotate(a) {
+				return [[ cos(a), sin(a), 0],
+								[-sin(a), cos(a), 0],
+								[      0,      0, 1]];
+			}
+			
+			function mul(A, B) {
+				const rowsA = A.length;
+				const colsA = A[0].length;
+				const rowsB = B.length;
+				const colsB = B[0].length;
+				// Hope colsA === rowsB ;)
+				const result = [];
+				for ( let i = 0; i < rowsA; ++i ) {
+					result[i] = [];
+				}
+				for ( let k = 0; k < colsB; ++k ) {
+					for ( let i = 0; i < rowsA; ++i ) {
+						let temp = 0;
+						for ( let j = 0; j < rowsB; ++j ) {
+							temp += A[i][j]*B[j][k];
+						}
+						result[i][k] = temp;
+					}
+				}
+				return result;
+			}
+			
+			function apply(ctx, M) {
+				ctx.setTransform(M[0][0], M[1][0], M[0][1], M[1][1], M[0][2], M[1][2]);
+			}
+			
+			//================================================================
+			// Main
+			//================================================================
+			
+			const camera = {
+				x: 5,
+				y: 5,
+				width: 40,
+				height: 30,
+				scale: 1.5,
+				angle: 0
+			}
+			
+			function drawAxis() {
+				apply(ctx, mainMatrix);
+				for ( let i = -10; i <= 10; ++i ) {
+					ctx.beginPath();
+					ctx.moveTo(-10, i);
+					ctx.lineTo(10, i);
+					ctx.lineWidth = 0.1;
+					ctx.strokeStyle = '#00ff00';
+					ctx.stroke();
+				}
+				for ( let i = -10; i <= 10; ++i ) {
+					ctx.beginPath();
+					ctx.moveTo(i, -10);
+					ctx.lineTo(i, 10);
+					ctx.lineWidth = 0.1;
+					ctx.strokeStyle = '#00ff00';
+					ctx.stroke();
+				}
+				ctx.fillStyle = "#FF0000";
+				ctx.fillRect(-0.1, -0.1, 0.2, 0.2);
+				ctx.fillStyle = "#0000FF";
+				ctx.fillRect(10, 10, 0.2, 0.2);
+			}
+			
+			function clean() {
+				const canvas = document.getElementById('canvas');
+				ctx.setTransform(1, 0, 0, 1, 0, 0);
+				ctx.fillStyle = 'gray';
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+			}
+			
+			function drawBoxSprite() {
+				const img = new Image();
+				img.src = 'box.jpg';
+				img.onload = function() {
+					const pos = { x: 5, y: 5 };
+					const size = { w: 4, h: 3 };
+					const anchor = { x: 0.5, y: 0.5 };
+					const angle = 3.14/2;
+					
+					let M = identity();
+					M = mul(scale(size.w/img.width, size.h/img.height), M);
+					M = mul(move(-size.w*anchor.x, -size.h*anchor.y), M);
+					M = mul(reflect(), M);
+					M = mul(rotate(angle), M);
+					M = mul(move(pos.x, pos.y), M);
+					M = mul(mainMatrix, M);
+					apply(ctx, M);
+					ctx.drawImage(img, 0, 0);
+				}
+			}
+			
+			function drawQuad() {
+				const pos = { x: -5, y: 5 };
+				const size = { w: 4, h: 3 };
+				const angle = 0.3;
+				
+				let M = identity();
+				M = mul(rotate(angle), M);
+				M = mul(move(pos.x, pos.y), M);
+				M = mul(mainMatrix, M);
+				apply(ctx, M);
+				ctx.fillStyle = "#FF0000";
+				ctx.fillRect(0, 0, size.w, size.h);
+				ctx.fillStyle = "#00FFFF";
+				ctx.fillRect(-0.2, -0.2, 0.4, 0.4);
+			}
+			
+			function drawTriangle() {
+				const pos = { x: -5, y: -5 };
+				const size = { w: 4, h: 3 };
+				apply(ctx, mul(mainMatrix, move(pos.x, pos.y)));
+				ctx.beginPath();
+				ctx.moveTo(0, 0);
+				ctx.lineTo(size.w, 0);
+				ctx.lineTo(size.w/2, size.h);
+				ctx.lineTo(0, 0);
+				ctx.lineWidth = 0.1;
+				ctx.strokeStyle = '#000000';
+				ctx.stroke();
+			}
+			
+			function drawDog() {
+				const img = new Image();
+				img.src = 'dog.jpg';
+				img.onload = function() {
+					const pos = { x: 5, y: -5 };
+					const size = { w: 4, h: 3 };
+					const anchor = { x: 0.5, y: 0.5 };
+					const angle = 0.3;
+					
+					let M = identity();
+					M = mul(scale(size.w/img.width, size.h/img.height), M);
+					M = mul(move(-size.w*anchor.x, -size.h*anchor.y), M);
+					M = mul(reflect(), M);
+					M = mul(rotate(angle), M);
+					M = mul(scale(1.5, 1.5), M);
+					M = mul(move(pos.x, pos.y), M);
+					M = mul(mainMatrix, M);
+					apply(ctx, M);
+					ctx.drawImage(img, 0, 0);
+				}
+			}
+			
+			function main() {
+				canvas = document.getElementById('canvas');
+				ctx = canvas.getContext('2d');
+				
+				let M = identity();
+				M = mul(move(-camera.x, -camera.y), M);
+				M = mul(reflect(), M);
+				M = mul(scale(camera.scale, camera.scale), M);
+				M = mul(rotate(camera.angle), M);
+				M = mul(scale(canvas.width/camera.width, canvas.height/camera.height), M);
+				M = mul(move(canvas.width/2, canvas.height/2), M);
+				mainMatrix = M;
+				
+				clean();
+				drawAxis();
+				drawBoxSprite();
+				drawQuad();
+				drawTriangle();
+				drawDog();
+			}
+			
+			function calc(x, y, w, h) {
+				camera.x = document.getElementById('cameraX').value;
+				camera.y = document.getElementById('cameraY').value;
+				camera.width = document.getElementById('cameraW').value;
+				camera.height = document.getElementById('cameraH').value;
+				camera.angle = document.getElementById('angle').value;
+				camera.scale = document.getElementById('scale').value;
+				main();
+			}
+			
+		</script>
+	</head>
+	<body bgcolor='#ffebcd' onload='main()'>
+		<canvas width='800' height='600' style='border: 2px solid black' id='canvas'></canvas>
+		<br>
+		<input type='text' id='cameraX' value='3'> - X<br>
+		<input type='text' id='cameraY' value='5'> - Y<br>
+		<input type='text' id='cameraW' value='20'> - W<br>
+		<input type='text' id='cameraH' value='15'> - H<br>
+		<input type='text' id='angle' value='0'> - Angle<br>
+		<input type='text' id='scale' value='1'> - Scale<br>
+		<button onclick='calc()'>Update</button>
+	</body>
+</html>
